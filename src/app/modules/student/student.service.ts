@@ -4,15 +4,96 @@ import AppError from '../../errors/AppError';
 import { User } from '../user/user.model';
 import httpStatus from 'http-status';
 import { TStudent } from './student.interface';
+import { studentSearchableFields } from './student.constant';
+import QueryBuilder from '../../builder/QueryBuilder';
+import { resourceLimits } from 'worker_threads';
 
-const getAllStudentsFromDB = async () => {
-  const result = await Student.find().populate('admissionSemester').populate({
-    path: 'academicDepartment',
-    populate: {
-      path: 'academicFaculty',
-    },
-  });
-  return result;
+const getAllStudentsFromDB = async (query: Record<string, unknown>) => {
+  
+
+
+  // const queryObj = {...query}; // copy
+
+
+  // {email: {$regex: query.serachTerm, $option: i}}
+  // {presentAddress: {$regex: query.serachTerm, $option: i}}
+  // {'name.firstName': {$regex: query.serachTerm, $option: i}}
+  
+
+  
+  // let searchTerm = '';  
+ 
+  // if (query?.searchTerm) {
+  //   searchTerm = query?.searchTerm as string; 
+  // }
+  
+  // const searchQuery =  Student.find({
+  //   $or: studentSearchableFields.map((field)=> ({
+  //     [field]: {$regex: searchTerm, $options: 'i'},
+  //   })),
+  // });
+
+// // Filtering
+// const excludeFields = ['searchTerm', 'sort', 'limit', 'page', 'fields']
+// excludeFields.forEach((eL)=> delete queryObj[eL])
+
+//   const filterQuery =  searchQuery.find(queryObj)
+//   .populate('admissionSemester').populate({
+//     path: 'academicDepartment',
+//     populate: {
+//       path: 'academicFaculty',
+//     },
+//   });
+
+//   let sort = '-createdAt'
+//   if(query.sort) {
+//     sort = query.sort as string;
+//   }
+// const sortQuery =  filterQuery.sort(sort);
+// let page = 1;
+// let limit = 1;
+// let skip = 0;
+
+// if(query.limit) {
+//   limit = Number(query.limit);
+// }
+
+
+// if(query.page) {
+//   page = Number(query.page)
+//   skip = (page-1)*limit
+// }
+
+// const paginatQuery = sortQuery.skip(skip);
+
+// const limitQuery =  paginatQuery.limit(limit);
+
+
+// // field Limiting 
+
+// let fields = '-__v';
+
+// fields: ' name, email'
+// fields: ' name email'
+// if(query.fields) {
+//   fields = (query.fields as string).split(',').join(' ')
+//   console.log({fields})
+// }
+
+
+// const fieldQuery = await limitQuery.select(fields) 
+
+// return fieldQuery;
+
+const studentQuery = new QueryBuilder(Student.find(), query)
+.search(studentSearchableFields)
+.filter()
+.sort()
+.paginate()
+.fields();  
+
+const result = await studentQuery.modelQuery;
+return result;
 };
 
 const getSingleStudentFromDB = async (id: string) => {
@@ -44,19 +125,19 @@ const updateStudentIntoDB = async(id: string, payLoad: Partial<TStudent>) => {
 
   if(name && Object.keys(name).length) {
     for(const [key, value] of Object.entries(name)) {
-      modifiedUpdateData[`$name${key}`] = value;  
+      modifiedUpdateData[`name.${key}`] = value;  
     }
   }
 
   if(guardian && Object.keys(guardian).length) {
     for(const [key, value] of Object.entries(guardian)) {
-      modifiedUpdateData[`$guardian${key}`] = value;
+      modifiedUpdateData[`guardian.${key}`] = value;
     }
   }
 
   if(localGuardian && Object.keys(localGuardian).length) {
     for(const [key, value] of Object.entries(localGuardian)) {
-      modifiedUpdateData[`$guardian${key}`] = value;
+      modifiedUpdateData[`guardian.${key}`] = value;
     }
   }
 
@@ -66,7 +147,7 @@ console.log(modifiedUpdateData)
 
 
 
-  const result = await Student.findOneAndUpdate({id}, modifiedUpdateData, {new:true, runValidators})
+  const result = await Student.findOneAndUpdate({id}, modifiedUpdateData, {new:true, runValidators: true,})
   return result;
 }
 
